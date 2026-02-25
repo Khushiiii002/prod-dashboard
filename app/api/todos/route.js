@@ -1,38 +1,62 @@
-import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { prisma } from "@/lib/prisma"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+
+export async function GET() {
+  const session = await getServerSession(authOptions)
+
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 })
+  }
+
+  const todos = await prisma.todo.findMany({
+    where: {
+      userId: session.user.id,
+    },
+    orderBy: { createdAt: "desc" },
+  })
+
+  return Response.json(todos)
+}
 
 export async function POST(req) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions)
 
-  if (!session?.user?.email) {
-    return new Response("Unauthorized", { status: 401 });
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 })
   }
 
-  const { title, dueDate } = await req.json();
+  const body = await req.json()
 
-  if (!title || !dueDate) {
-    return new Response("Title and dueDate required", { status: 400 });
+  if (!body.title) {
+    return new Response("Title required", { status: 400 })
   }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-  });
-
-  if (!user) return new Response("User not found", { status: 404 });
 
   const todo = await prisma.todo.create({
     data: {
-      title,
-      dueDate: new Date(dueDate),
-      user: { connect: { id: user.id } },
+      title: body.title,
+      userId: session.user.id,
     },
-  });
+  })
 
-  return new Response(JSON.stringify(todo), { status: 200 });
+  return Response.json(todo)
 }
 
-export async function GET() {
-  const todos = await prisma.todo.findMany({ include: { user: true } });
-  return new Response(JSON.stringify(todos), { status: 200 });
+export async function DELETE(req) {
+  const session = await getServerSession(authOptions)
+
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 })
+  }
+
+  const { id } = await req.json()
+
+  await prisma.todo.delete({
+    where: {
+      id,
+      userId: session.user.id,
+    },
+  })
+
+  return Response.json({ success: true })
 }
