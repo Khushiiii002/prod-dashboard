@@ -58,8 +58,11 @@ model VerificationToken {
 model Todo {
   id        String   @id @default(cuid())
   title     String
+  completed Boolean  @default(false)
+  date      DateTime @default(now())
+  priority  String   @default("Medium")  // 👈 ADD THIS
+  userId    String
   createdAt DateTime @default(now())
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 }
