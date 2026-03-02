@@ -1,35 +1,46 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { name, email, password } = body;
+    // Parse JSON safely
+    const body = await req.json().catch(() => null);
 
-    if (!email || !password) {
+    if (!body) {
       return NextResponse.json(
-        { error: "Missing fields" },
+        { error: "Invalid JSON body" },
         { status: 400 }
       );
     }
 
+    const { name, email, password } = body;
+
+    // Validate required fields
+    if (!name || !email || !password) {
+      return NextResponse.json(
+        { error: "Name, email, and password are required" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "User already exists" },
+        { error: "User with this email already exists" },
         { status: 400 }
       );
     }
 
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await prisma.user.create({
+    // Create new user
+    const newUser = await prisma.user.create({
       data: {
         name,
         email,
@@ -38,13 +49,13 @@ export async function POST(req) {
     });
 
     return NextResponse.json(
-      { message: "User created successfully" },
+      { message: "User created successfully", user: { id: newUser.id, name: newUser.name, email: newUser.email } },
       { status: 201 }
     );
   } catch (error) {
-    console.error(error);
+    console.error("Register API error:", error);
     return NextResponse.json(
-      { error: "Something went wrong" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

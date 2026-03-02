@@ -23,7 +23,7 @@ export default function Login() {
     setLoading(false)
 
     if (res?.ok) {
-      router.push("/")
+      router.push("/dashboard");
     } else {
       alert("Invalid credentials")
     }
